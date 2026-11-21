@@ -5,6 +5,7 @@
 
 import React, { useEffect, useState } from "react";
 import { LanguageSelector } from "@/components/language-selector";
+import { LOCAL_UNRESTRICTED } from "@/lib/app-entitlement";
 import { useLocalizationEnabled } from "@/lib/i18n/provider";
 import { useGT, useMessages } from "gt-react";
 import { LockedSetting, ManagedSwitch } from "@/components/enterprise-locked-setting";
@@ -367,7 +368,7 @@ export default function GeneralSettings() {
           </Card>
         )}
 
-        {!isManagedDeployment && (
+        {!isManagedDeployment && !LOCAL_UNRESTRICTED && (
           <Card className="border-border bg-card">
             <CardContent className="px-3 py-2.5">
               <div className="flex items-center justify-between">

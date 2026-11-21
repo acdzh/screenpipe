@@ -35,6 +35,39 @@ fn split_compound(text: &str) -> String {
     result.into_owned()
 }
 
+/// Whether the text contains scripts that SQLite's `unicode61` tokenizer keeps
+/// as one unbroken token (CJK ideographs, kana, Hangul).
+///
+/// A captured line like `今天下午三点的会议记录` becomes a single FTS token, so a
+/// prefix query for `会议` never matches. Callers that need substring recall on
+/// these scripts must use a LIKE scan instead of `MATCH`.
+pub fn contains_cjk(text: &str) -> bool {
+    text.chars().any(|character| {
+        matches!(
+            character as u32,
+            0x3040..=0x30FF        // hiragana + katakana
+                | 0x3400..=0x4DBF  // CJK extension A
+                | 0x4E00..=0x9FFF  // CJK unified ideographs
+                | 0xF900..=0xFAFF  // CJK compatibility ideographs
+                | 0xAC00..=0xD7AF // hangul syllables
+        )
+    })
+}
+
+/// `%needle%` with LIKE wildcards escaped, for a literal substring scan.
+pub fn like_contains_pattern(text: &str) -> String {
+    let mut pattern = String::with_capacity(text.len() + 2);
+    pattern.push('%');
+    for character in text.trim().chars() {
+        if matches!(character, '%' | '_' | '\\') {
+            pattern.push('\\');
+        }
+        pattern.push(character);
+    }
+    pattern.push('%');
+    pattern
+}
+
 /// Sanitize a query string for safe use in FTS5 MATCH expressions.
 ///
 /// Wraps each whitespace-delimited token in double quotes so that

@@ -8,6 +8,7 @@ import { ArrowRight, Clock } from "lucide-react";
 import posthog from "posthog-js";
 import {
   hasBillingSubscriptionEntitlement,
+  LOCAL_UNRESTRICTED,
   planDisplayName,
   type AppUser,
 } from "@/lib/app-entitlement";
@@ -54,6 +55,10 @@ export function PlanExpirationNotice({
   onClick,
   variant = "sidebar",
 }: PlanExpirationNoticeProps) {
+  // Private local build: the entitlement never expires, so the notice is dead UI.
+  if (LOCAL_UNRESTRICTED) {
+    return null;
+  }
   const expiration = getUserPlanExpiration(user);
   const plan = user?.subscription_plan;
   // Without the build flag this notice called a team/enterprise plan

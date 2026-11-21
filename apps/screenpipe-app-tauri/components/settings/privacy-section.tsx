@@ -74,6 +74,7 @@ import { planEnhancedIncognitoPermission } from "@/lib/utils/incognito-permissio
 import posthog from "posthog-js";
 import * as Sentry from "@sentry/react";
 import { defaultOptions } from "tauri-plugin-sentry-api";
+import { TELEMETRY_DISABLED } from "@/lib/telemetry";
 import { cacheAnalyticsEnabled } from "@/lib/analytics-id";
 import {
   validateField,
@@ -1763,12 +1764,20 @@ export function PrivacySection() {
                   </p>
                 </div>
               </div>
-              <ManagedSwitch
-                settingKey="analyticsEnabled"
-                id="analyticsEnabled"
-                checked={settings.analyticsEnabled}
-                onCheckedChange={handleAnalyticsToggle}
-              />
+              {TELEMETRY_DISABLED ? (
+                // Private local build: the transport never starts, so a toggle
+                // here would only lie about what the app does.
+                <span className="text-xs text-muted-foreground">
+                  {ui("Disabled in this build")}
+                </span>
+              ) : (
+                <ManagedSwitch
+                  settingKey="analyticsEnabled"
+                  id="analyticsEnabled"
+                  checked={settings.analyticsEnabled}
+                  onCheckedChange={handleAnalyticsToggle}
+                />
+              )}
             </div>
           </CardContent>
         </Card>

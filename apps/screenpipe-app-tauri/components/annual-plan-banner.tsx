@@ -12,6 +12,7 @@ import { openExternalUrl } from "@/lib/open-external-url";
 import { tauriFetchWithDeadline } from "@/lib/http/tauri-fetch";
 import { screenpipeWebUrl } from "@/lib/web-url";
 import { annualOfferDismissalKey, getAnnualPlanOffer, type AnnualPlanOffer } from "@/lib/annual-plan-offer";
+import { LOCAL_UNRESTRICTED } from "@/lib/app-entitlement";
 
 const money = (amount: number) => new Intl.NumberFormat(undefined, {
   style: "currency", currency: "USD", maximumFractionDigits: 2,
@@ -147,6 +148,10 @@ function EligibleAnnualPlanBanner({ userId, token }: { userId: string; token: st
 }
 
 export function AnnualPlanBanner() {
+  // Private local build: every plan is unlocked, so there is nothing to upsell.
+  if (LOCAL_UNRESTRICTED) {
+    return null;
+  }
   const { settings } = useSettings();
   const { isManagedDeployment, isManagedDeploymentResolved } = useManagedPolicy();
   const user = settings.user;

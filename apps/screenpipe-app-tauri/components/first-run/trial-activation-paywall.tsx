@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/lib/hooks/use-settings";
-import type { AppUser } from "@/lib/app-entitlement";
+import { LOCAL_UNRESTRICTED, type AppUser } from "@/lib/app-entitlement";
 import { commands } from "@/lib/utils/tauri";
 import { screenpipeWebUrl } from "@/lib/web-url";
 import { isOnboardingCheckoutResolved } from "@/lib/onboarding-checkout";
@@ -41,6 +41,10 @@ export function TrialActivationPaywall({
   open: boolean;
   locked: boolean;
 }) {
+  // Private local build: there is no card-backed trial to sell.
+  if (LOCAL_UNRESTRICTED) {
+    return null;
+  }
 
   const ui = useGT();
   const locale = useUiLocale();

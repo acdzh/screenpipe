@@ -811,13 +811,22 @@ impl DatabaseManager {
         // Note: focused and frame_name are not indexed in frames_fts,
         // they are filtered via SQL WHERE clauses instead.
 
-        // Merge text search query into the FTS parts so we query frames_fts once
-        if !query.trim().is_empty() {
+        // Merge text search query into the FTS parts so we query frames_fts once.
+        // CJK text cannot use that path: unicode61 keeps a whole CJK run as one
+        // token, so a prefix query for a word inside the sentence never matches.
+        // Those queries fall back to a LIKE scan over the captured text.
+        let cjk_query = crate::text_normalizer::contains_cjk(query) && self.storage.is_none();
+        if !query.trim().is_empty() && !cjk_query {
             let sanitized = crate::text_normalizer::sanitize_fts5_query(query);
             if !sanitized.is_empty() {
                 frame_fts_parts.push(sanitized);
             }
         }
+        let text_like = if cjk_query && !query.trim().is_empty() {
+            Some(crate::text_normalizer::like_contains_pattern(query))
+        } else {
+            None
+        };
         let fts_query = frame_fts_parts.join(" ");
         let has_fts = !fts_query.trim().is_empty();
 
@@ -845,6 +854,7 @@ impl DatabaseManager {
             {fts_join}
             WHERE 1=1
                 {fts_condition}
+                {text_like_condition}
                 {start_condition}
                 {end_condition}
                 AND (?4 IS NULL OR {full_text_length} >= ?4)
@@ -899,6 +909,11 @@ impl DatabaseManager {
             } else {
                 ""
             },
+            text_like_condition = if text_like.is_some() {
+                "AND COALESCE(frames.full_text, '') LIKE ?13 ESCAPE '\'"
+            } else {
+                ""
+            },
             order_dir = match order {
                 Order::Ascending => "ASC",
                 Order::Descending => "DESC",
@@ -926,6 +941,7 @@ impl DatabaseManager {
             .bind(limit)
             .bind(offset)
             .bind(&tags_json)
+            .bind(text_like.as_deref())
             .fetch_all(&mut *connection)
             .await?;
         drop(connection);
@@ -1142,8 +1158,19 @@ impl DatabaseManager {
         );
         // build where clause conditions in order
         let mut conditions = Vec::new();
+        // CJK transcripts have the same unicode61 token problem as screen text,
+        // so those queries scan the transcription column instead.
+        let text_like = if !query.is_empty() && crate::text_normalizer::contains_cjk(query) {
+            Some(crate::text_normalizer::like_contains_pattern(query))
+        } else {
+            None
+        };
         if !query.is_empty() {
-            conditions.push("audio_transcriptions.audio_chunk_id IN (SELECT at_inner.audio_chunk_id FROM audio_transcriptions_fts JOIN audio_transcriptions at_inner ON at_inner.id = audio_transcriptions_fts.rowid WHERE audio_transcriptions_fts MATCH ? ORDER BY audio_transcriptions_fts.rank LIMIT 5000)");
+            if text_like.is_some() {
+                conditions.push("audio_transcriptions.transcription LIKE ? ESCAPE '\\'");
+            } else {
+                conditions.push("audio_transcriptions.audio_chunk_id IN (SELECT at_inner.audio_chunk_id FROM audio_transcriptions_fts JOIN audio_transcriptions at_inner ON at_inner.id = audio_transcriptions_fts.rowid WHERE audio_transcriptions_fts MATCH ? ORDER BY audio_transcriptions_fts.rank LIMIT 5000)");
+            }
         }
         if start_time.is_some() {
             conditions.push("audio_transcriptions.timestamp >= ?");
@@ -1225,7 +1252,10 @@ impl DatabaseManager {
 
         // bind parameters in the same order as added to the where clause
         if !query.is_empty() {
-            query_builder = query_builder.bind(crate::text_normalizer::sanitize_fts5_query(query));
+            query_builder = query_builder.bind(match text_like {
+                Some(ref pattern) => pattern.clone(),
+                None => crate::text_normalizer::sanitize_fts5_query(query),
+            });
         }
         if let Some(start) = start_time {
             query_builder = query_builder.bind(start);
@@ -2118,10 +2148,17 @@ impl DatabaseManager {
         } else {
             "[]".to_string()
         };
-        // Build unified FTS query for frames_fts
+        // Build unified FTS query for frames_fts. CJK text goes through the LIKE
+        // path for the same reason as search_ocr: unicode61 cannot split it.
         let mut fts_parts = Vec::new();
+        let cjk_query = crate::text_normalizer::contains_cjk(query) && self.storage.is_none();
+        let text_like = if cjk_query && !query.is_empty() {
+            Some(crate::text_normalizer::like_contains_pattern(query))
+        } else {
+            None
+        };
 
-        if !query.is_empty() {
+        if !query.is_empty() && !cjk_query {
             fts_parts.push(crate::text_normalizer::sanitize_fts5_query(query));
         }
         if let Some(app) = app_name {
@@ -2168,6 +2205,7 @@ impl DatabaseManager {
                    {fts_join}
                    WHERE 1=1
                        {fts_condition}
+                       {text_like_condition}
                        {frame_start_condition}
                        {frame_end_condition}
                        AND (?4 IS NULL OR {full_text_length} >= ?4)
@@ -2193,6 +2231,11 @@ impl DatabaseManager {
                 } else {
                     ""
                 },
+                text_like_condition = if text_like.is_some() {
+                    "AND COALESCE(frames.full_text, '') LIKE ?9 ESCAPE '\'"
+                } else {
+                    ""
+                },
                 a11y_filter = if content_type == ContentType::Accessibility {
                     if self.storage.is_some() { "AND frames.payload_accessibility_length > 0" } else { "AND frames.accessibility_text IS NOT NULL AND frames.accessibility_text != ''" }
                 } else {
@@ -2212,7 +2255,7 @@ impl DatabaseManager {
                        {speaker_name_condition}
                        {tag_filter}
                 "#,
-                table = if query.is_empty() {
+                table = if query.is_empty() || text_like.is_some() {
                     "audio_transcriptions"
                 } else {
                     "audio_transcriptions_fts JOIN audio_transcriptions ON audio_transcriptions.id = audio_transcriptions_fts.rowid"
@@ -2247,6 +2290,8 @@ impl DatabaseManager {
                 },
                 match_condition = if query.is_empty() {
                     "1=1"
+                } else if text_like.is_some() {
+                    "audio_transcriptions.transcription LIKE ?1 ESCAPE '\'"
                 } else {
                     "audio_transcriptions_fts MATCH ?1"
                 }
@@ -2345,6 +2390,7 @@ impl DatabaseManager {
                     .bind(frame_name)
                     .bind(focused)
                     .bind(&tags_json)
+                    .bind(text_like.as_deref())
                     .fetch_one(&mut *connection)
                     .await?;
                 drop(connection);
@@ -2353,6 +2399,8 @@ impl DatabaseManager {
             ContentType::Audio => {
                 let sanitized_audio = if query.is_empty() {
                     "*".to_owned()
+                } else if let Some(pattern) = text_like.as_deref() {
+                    pattern.to_owned()
                 } else {
                     crate::text_normalizer::sanitize_fts5_query(query)
                 };

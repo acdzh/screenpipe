@@ -21,6 +21,7 @@ import {
   type BusinessUpgradeOffer,
 } from "@/lib/business-upgrade-offer";
 import type { BusinessUpgradeSelection } from "@/lib/upgrade-flow";
+import { LOCAL_UNRESTRICTED } from "@/lib/app-entitlement";
 import { useGT } from "gt-react";
 
 
@@ -46,6 +47,10 @@ export function BusinessUpgradeCard({
   busy,
   onContinue,
 }: BusinessUpgradeCardProps) {
+  // Private local build: plans are unlocked, so the upgrade card is dead UI.
+  if (LOCAL_UNRESTRICTED) {
+    return null;
+  }
 
   const ui = useGT();
   const { settings } = useSettings();
