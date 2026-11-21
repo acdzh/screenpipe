@@ -287,6 +287,15 @@
     transition: background-color 0ms; /* Instant transition to prevent flash */
   }
 
+  /* Chinese text sits tighter than Latin at the same size: the mono stack has
+     no CJK metrics, so give paragraphs and list items a little more leading
+     and a hair of tracking once the UI resolves to Chinese. */
+  html[lang="zh"] p,
+  html[lang="zh"] li {
+    line-height: 1.75;
+    letter-spacing: 0.01em;
+  }
+
   body {
     @apply bg-background text-foreground !pointer-events-auto !overscroll-none;
   }

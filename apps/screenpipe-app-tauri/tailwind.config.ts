@@ -23,8 +23,10 @@ module.exports = {
 	  extend: {
 		fontFamily: {
 		  /* Screenpipe Brand: Monospace primary */
-		  sans: ["JetBrains Mono", "SF Mono", "IBM Plex Mono", "ui-monospace", "monospace"],
-		  mono: ["JetBrains Mono", "SF Mono", "IBM Plex Mono", "ui-monospace", "monospace"],
+		  // CJK faces come before the generic keyword so Chinese glyphs never fall
+		  // back to a font without them (which renders tofu on some systems).
+		  sans: ["JetBrains Mono", "SF Mono", "IBM Plex Mono", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "ui-monospace", "monospace"],
+		  mono: ["JetBrains Mono", "SF Mono", "IBM Plex Mono", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "ui-monospace", "monospace"],
 		},
 		fontSize: {
 		  xs:    ["var(--text-xs)",   { lineHeight: "1rem" }],

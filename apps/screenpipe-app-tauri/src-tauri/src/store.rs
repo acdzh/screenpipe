@@ -2425,6 +2425,12 @@ impl SettingsStore {
 
     pub fn to_recording_settings(&self) -> screenpipe_config::RecordingSettings {
         let mut settings = self.recording.clone();
+        // Private local build: an empty language list leaves OCR and transcription
+        // to guess from the OS locale, which drops Chinese text on an English-first
+        // system. Seed Chinese + English explicitly.
+        if crate::local_unlock::UNRESTRICTED && settings.languages.is_empty() {
+            settings.languages = vec!["chinese".to_string(), "english".to_string()];
+        }
         // App context is built in, even for old stores with the toggle off.
         // The remote emergency shutoff below still takes precedence.
         settings.enable_semantic_context = true;

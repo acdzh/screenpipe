@@ -25,6 +25,7 @@ import { installAuthInterceptor } from "../auth-guard";
 import {
 	getLocalPlanPolicy,
 	hasAppEntitlement,
+	LOCAL_UNRESTRICTED,
 	normalizeAppUser,
 } from "@/lib/app-entitlement";
 import { screenpipeWebUrl } from "@/lib/web-url";
@@ -691,6 +692,19 @@ export function makeDefaultPresets(isPro: boolean): AIPreset[] {
 
 const DEFAULT_AUDIO_ENGINE = "whisper-large-v3-turbo-quantized";
 
+/**
+ * Whisper-turbo stays the default for Latin-script systems. Chinese users get the
+ * multilingual Qwen3 recognizer instead: on Mandarin it is markedly more accurate
+ * than the quantized turbo model, and this build ships the `qwen3-asr` feature.
+ * Only applies to installs that have not stored an engine yet.
+ */
+const preferredDefaultAudioEngine = () => {
+	const locales = typeof navigator === "undefined" ? [] : (navigator.languages ?? []);
+	return locales.some((locale) => locale.toLowerCase().startsWith("zh"))
+		? "qwen3-asr"
+		: DEFAULT_AUDIO_ENGINE;
+};
+
 // "Paid" = any active app entitlement (Basic / Business / Enterprise / Lifetime)
 // OR the legacy cloud-sync subscription. Broadened from `cloud_subscribed`-only so
 // every paying user — not just Cloud Sync subscribers — gets Screenpipe Cloud
@@ -700,6 +714,9 @@ const isLoggedInProUser = (user: User | null | undefined) =>
 	hasAppEntitlement(user as any) && Boolean(user?.token);
 
 const applyProCloudAudioDefaults = (settings: Settings): Settings => {
+	// Private local build: transcription stays on-device, so the "paid users get
+	// Screenpipe Cloud" migration must not rewrite the engine.
+	if (LOCAL_UNRESTRICTED) return settings;
 	if (!isLoggedInProUser(settings.user)) return settings;
 	if ((settings as any)._proCloudAudioDefaultsAppliedV2) return settings;
 
@@ -745,7 +762,7 @@ let DEFAULT_SETTINGS: Settings = {
 			userId: "",
 			analyticsId: "",
 			devMode: false,
-			audioTranscriptionEngine: "whisper-large-v3-turbo-quantized",
+			audioTranscriptionEngine: preferredDefaultAudioEngine(),
 			meetingLiveTranscriptionEnabled: true,
 			meetingLiveTranscriptionProvider: "selected-engine",
 			appendTypedTextToMeetingNote: true,
