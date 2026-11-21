@@ -595,6 +595,11 @@ mod imp {
     }
 
     pub fn spawn(app: &AppHandle) {
+        // Private local build: remote support bundles upload redacted logs to
+        // screenpipe.com, so the poller and uploader never start.
+        if crate::local_unlock::TELEMETRY_DISABLED {
+            return;
+        }
         let app = app.clone();
         tauri::async_runtime::spawn(async move { run(app).await });
     }

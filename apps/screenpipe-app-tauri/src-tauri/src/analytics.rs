@@ -20,7 +20,9 @@ static TELEMETRY_CONSENT: AtomicBool = AtomicBool::new(true);
 
 pub(crate) fn set_consent(enabled: bool) {
     TELEMETRY_CONSENT.store(
-        enabled && !screenpipe_engine::analytics::telemetry_disabled_by_env(),
+        enabled
+            && !crate::local_unlock::TELEMETRY_DISABLED
+            && !screenpipe_engine::analytics::telemetry_disabled_by_env(),
         Ordering::SeqCst,
     );
 }

@@ -486,6 +486,12 @@ macro_rules! define_specta_builder {
 
 #[tokio::main]
 async fn main() {
+    // Private local build: nothing is reported. Set the engine-wide kill switch
+    // before any subsystem reads it, so embedded analytics, Sentry and the
+    // support-log uploader all agree on the same decision.
+    if crate::local_unlock::TELEMETRY_DISABLED {
+        std::env::set_var("SCREENPIPE_DISABLE_TELEMETRY", "1");
+    }
     #[cfg(target_os = "macos")]
     if let Some(code) = screenpipe_audio::core::vpio_process::run_hidden_mode().await {
         std::process::exit(code);

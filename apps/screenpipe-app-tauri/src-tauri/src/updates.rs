@@ -1097,6 +1097,11 @@ fn classify_update(
 }
 
 fn auto_update_enabled_from_settings(settings: Result<Option<SettingsStore>, String>) -> bool {
+    // Private local build: the periodic updater must not replace this build with
+    // an upstream release, and must not phone home on a schedule.
+    if crate::local_unlock::UNRESTRICTED {
+        return false;
+    }
     settings
         .ok()
         .flatten()

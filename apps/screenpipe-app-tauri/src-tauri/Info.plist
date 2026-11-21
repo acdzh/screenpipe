@@ -10,6 +10,8 @@
 	<dict>
 		<key>SCREENPIPE_DEV_USE_PROD_DATA</key>
 		<string>1</string>
+		<key>SCREENPIPE_DISABLE_TELEMETRY</key>
+		<string>1</string>
 	</dict>
 	<key>NSAppTransportSecurity</key>
 	<dict>

@@ -772,7 +772,7 @@ let DEFAULT_SETTINGS: Settings = {
 			ignoredMeetingApps: [],
 			teamFilters: { ignoredWindows: [], includedWindows: [], ignoredUrls: [] },
 
-			analyticsEnabled: true,
+			analyticsEnabled: false,
 			remoteLogCollectionEnabled: true,
 			remoteLogCollectionUserId: null,
 			audioChunkDuration: 30,

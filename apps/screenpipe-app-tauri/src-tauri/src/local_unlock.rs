@@ -14,3 +14,8 @@
 
 /// `true` when every plan-derived limit is disabled in this build.
 pub const UNRESTRICTED: bool = true;
+
+/// `true` when nothing is allowed to leave this machine for analytics, crash
+/// reporting, or support-log upload. Enforced at every sender, not just the UI
+/// consent toggle.
+pub const TELEMETRY_DISABLED: bool = true;

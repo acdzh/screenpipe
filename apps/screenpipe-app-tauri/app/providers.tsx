@@ -6,6 +6,7 @@
 import { MotionConfig } from "framer-motion";
 import { getVersion } from "@tauri-apps/api/app";
 import posthog from "posthog-js";
+import { TELEMETRY_DISABLED } from "@/lib/telemetry";
 import { WorkflowsRolloutSync } from "@/components/workflows/rollout-sync";
 import { PostHogProvider } from "posthog-js/react";
 import { useEffect, useState, Suspense } from "react";
@@ -116,7 +117,9 @@ export const Providers = forwardRef<
       // plus pollute prod analytics with test traffic.
       const isE2E = process.env.NEXT_PUBLIC_SCREENPIPE_E2E === "true";
       const isBrowserDev = Boolean(process.env.NEXT_PUBLIC_SCREENPIPE_WEB_DEV);
-      if (isDebug || isE2E || isBrowserDev) return;
+      // Private local build: no analytics transport is ever created, so no
+      // capture, identify, or feature-flag request can reach PostHog.
+      if (TELEMETRY_DISABLED || isDebug || isE2E || isBrowserDev) return;
       // Read the cached analytics preference to sync PostHog opt-in/out
       // after init. undefined = first boot → allow capturing (default true).
       const cachedEnabled = readCachedAnalyticsEnabled();
