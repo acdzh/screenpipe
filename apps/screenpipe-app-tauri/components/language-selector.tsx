@@ -22,11 +22,11 @@ export function LanguageSelector() {
     }
   };
   return <div className="flex flex-wrap items-center justify-between gap-3" data-testid="language-selector">
-    <Label htmlFor="ui-language">Language</Label>
+    <Label htmlFor="ui-language">{gt("Language")}</Label>
     <Select value={typeof settings.uiLocale === "string" ? settings.uiLocale : "system"} onValueChange={(locale) => void changeLocale(locale)}>
       <SelectTrigger id="ui-language" aria-label={gt("Language")} className="w-auto min-w-40 max-w-full"><SelectValue /></SelectTrigger>
       <SelectContent>
-        <SelectItem value="system">System default</SelectItem>
+        <SelectItem value="system">{gt("System default")}</SelectItem>
         {bundledLocales.map((locale) => <SelectItem key={locale} value={locale}>{localeName(locale)}</SelectItem>)}
       </SelectContent>
     </Select>

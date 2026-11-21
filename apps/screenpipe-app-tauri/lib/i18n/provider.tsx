@@ -9,6 +9,7 @@ import { locale as operatingSystemLocale } from "@tauri-apps/plugin-os";
 import { resolveLocale } from "./locale";
 import bundled from "@/lib/i18n/generated.json";
 import { OfflineGTProvider } from "./offline-provider";
+import { LOCAL_UNRESTRICTED } from "@/lib/app-entitlement";
 
 type Snapshot = {
   mode: string; revision: string; defaultLocale: string; locales: string[];
@@ -45,7 +46,9 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
   }, []);
   const configured = typeof settings.uiLocale === "string" ? settings.uiLocale : "system";
   const rolloutEnabled = settings.uiLocalizationEnabled === true;
-  const enabled = rolloutEnabled && locales.length > 0;
+  // Private local build: the bundled catalog is always usable, so the UI never
+  // waits for a remote rollout flag that this build cannot receive.
+  const enabled = LOCAL_UNRESTRICTED || (rolloutEnabled && locales.length > 0);
   const locale = enabled ? resolveLocale(configured, system, bundledLocales, defaultLocale) : defaultLocale;
   useEffect(() => {
     document.documentElement.lang = locale;

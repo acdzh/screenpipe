@@ -1,14 +1,17 @@
 // screenpipe — AI that knows everything you've seen, said, or heard
 // https://screenpipe.com
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 export const appRoot = fileURLToPath(new URL("../../", import.meta.url));
 export const gtConfig = JSON.parse(readFileSync(new URL("../../gt.config.json", import.meta.url), "utf8"));
 
 export function localizationMode(value = process.env.SCREENPIPE_I18N_MODE) {
-  const mode = value ?? "off";
+  // A checked-in snapshot means the shipped catalogs are authoritative, so a
+  // plain `bun run tauri build` keeps them instead of wiping them to "off".
+  const snapshot = fileURLToPath(new URL("../../.localization/snapshot.json", import.meta.url));
+  const mode = value ?? (existsSync(snapshot) ? "cached" : "off");
   if (!["off", "cached", "generate"].includes(mode)) {
     throw new Error(`Invalid SCREENPIPE_I18N_MODE: ${mode}`);
   }

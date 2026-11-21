@@ -2,7 +2,7 @@
   "$schema": "https://assets.gtx.dev/config-schema.json",
   "defaultLocale": "en",
   "locales": [
-    "ja"
+    "zh"
   ],
   "src": [
     "app/**/*.{ts,tsx}",

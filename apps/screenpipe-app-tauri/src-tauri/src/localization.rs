@@ -72,6 +72,10 @@ pub fn resolve_locale(configured: &str, system: &[String], available: &[String],
 
 impl LocaleState {
     fn update(&mut self, configured: &str, rollout_enabled: bool, system: &[String], available: &[String], default: &str) -> bool {
+        // Private local build: the bundled catalog is authoritative, so native
+        // surfaces (tray menu, notifications, overlay) follow the resolved
+        // locale without waiting for a remote rollout flag.
+        let rollout_enabled = rollout_enabled || crate::local_unlock::UNRESTRICTED;
         let resolved = if rollout_enabled { resolve_locale(configured, system, available, default) } else { default.to_string() };
         let changed = self.resolved != resolved;
         self.configured = configured.to_string();

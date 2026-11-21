@@ -120,12 +120,14 @@ impl RewindWindowId {
 
     pub fn title(&self) -> &str {
         match self {
+            // Brand name stays literal; the other titles are extracted UI text so
+            // the native catalog can localize them.
             RewindWindowId::Main => "screenpipe",
             RewindWindowId::Home => "screenpipe",
-            RewindWindowId::Search => "search",
-            RewindWindowId::Onboarding => "onboarding",
-            RewindWindowId::Chat => "ai chat",
-            RewindWindowId::PermissionRecovery => "fix permissions",
+            RewindWindowId::Search => crate::localization::source_text("search"),
+            RewindWindowId::Onboarding => crate::localization::source_text("onboarding"),
+            RewindWindowId::Chat => crate::localization::source_text("ai chat"),
+            RewindWindowId::PermissionRecovery => crate::localization::source_text("Fix permissions"),
         }
     }
 
@@ -188,7 +190,7 @@ impl ShowRewindWindow {
         let id = self.id();
 
         let mut builder = WebviewWindow::builder(app, label, WebviewUrl::App(url.into()))
-            .title(id.title())
+            .title(crate::localization::ui_text(id.title()))
             .visible(true)
             .accept_first_mouse(true)
             .shadow(true);
@@ -220,7 +222,7 @@ impl ShowRewindWindow {
         let id = self.id();
 
         let mut builder = WebviewWindow::builder(app, id.label(), WebviewUrl::App(url.into()))
-            .title(id.title())
+            .title(crate::localization::ui_text(id.title()))
             .visible(true)
             .accept_first_mouse(true)
             .shadow(true);

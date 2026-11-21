@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import posthog from "posthog-js";
 import { useSettings } from "@/lib/hooks/use-settings";
 import { isPrimaryWindow } from "@/lib/utils/is-primary-window";
+import { LOCAL_UNRESTRICTED } from "@/lib/app-entitlement";
 
 export const LOCALIZATION_FLAG = "desktop-localization";
 
@@ -16,6 +17,9 @@ export function LocalizationRolloutSync({ ready }: { ready: boolean }) {
   current.current = { enabled: settings.uiLocalizationEnabled === true, updateSettings };
 
   useEffect(() => {
+    // Private local build: the bundled catalog is authoritative, so a missing
+    // remote flag must never disable the localized UI.
+    if (LOCAL_UNRESTRICTED) return;
     if (!ready || !isSettingsLoaded || !isPrimaryWindow()) return;
     let cancelled = false;
     let pending = Promise.resolve();
