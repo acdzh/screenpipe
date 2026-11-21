@@ -24,7 +24,7 @@ import posthog from "posthog-js";
 import { commands } from "@/lib/utils/tauri";
 import { onboardingFunnel } from "@/lib/analytics/onboarding-funnel";
 import { writeBrowserLogNow } from "@/lib/logging/browser-log";
-import type { AppUser } from "@/lib/app-entitlement";
+import { LOCAL_UNRESTRICTED, type AppUser } from "@/lib/app-entitlement";
 import {
   isTrialActivationEligible,
   TRIAL_ACTIVATION_ASSIGNMENT_SESSION_KEY,
@@ -455,6 +455,7 @@ export default function OnboardingPage() {
   const wasTrialActivationEligible =
     needsOnboardingCheckout || checkoutReturnStatus !== null;
   const shouldShowPlanSelection =
+    !LOCAL_UNRESTRICTED &&
     !isManagedDeployment &&
     (checkoutReturnStatus !== null ||
       (needsOnboardingCheckout &&

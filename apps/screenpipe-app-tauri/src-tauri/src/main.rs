@@ -102,6 +102,7 @@ mod ics_calendar;
 mod livetext;
 #[cfg(target_os = "macos")]
 mod livetext_ffi;
+mod local_unlock;
 mod enterprise_persistence;
 mod meeting_export;
 mod workflow_video;

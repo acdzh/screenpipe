@@ -12,7 +12,7 @@ import {
   readOnboardingCheckoutStatus,
   submitHostedCheckoutStart,
 } from "@/lib/onboarding-checkout-navigation";
-import type { AppUser } from "@/lib/app-entitlement";
+import { LOCAL_UNRESTRICTED, type AppUser } from "@/lib/app-entitlement";
 import { isOnboardingCheckoutResolved } from "@/lib/onboarding-checkout";
 import { useGT } from "gt-react";
 import { useUiLocale } from "@/lib/i18n/provider";
@@ -57,7 +57,16 @@ export default function PlanSelectionStep({
   const checkoutResolved = isOnboardingCheckoutResolved(user);
   loadUserRef.current = loadUser;
 
+  // Private local build: this slide exists only to open hosted checkout, so it
+  // advances through instead of mounting the payment flow.
+  useEffect(() => {
+    if (!LOCAL_UNRESTRICTED || advancedRef.current) return;
+    advancedRef.current = true;
+    void handleNextSlide();
+  }, [handleNextSlide]);
+
   const startCheckout = useCallback(() => {
+    if (LOCAL_UNRESTRICTED) return;
     if (submissionStartedRef.current) return;
     if (!userToken) {
       setBusy(false);
@@ -210,6 +219,10 @@ export default function PlanSelectionStep({
     setReturnRecoveryFinished(false);
     setRecoveryAttempt((attempt) => attempt + 1);
   }, [userToken]);
+
+  if (LOCAL_UNRESTRICTED) {
+    return null;
+  }
 
   if (returnStatus === "complete") {
     return (

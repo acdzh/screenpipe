@@ -105,6 +105,17 @@ const VERIFIED_PAID_PLAN_IDS = new Set([
 // to honor in production too.
 export const E2E_FORCE_BILLING_GATE_KEY = "screenpipe_e2e_force_billing_gate";
 
+/**
+ * Private local build: every commercial plan gate resolves to the entitled
+ * state. This flag is the single switch behind all plan-derived limits, so the
+ * unrestricted behavior is one auditable constant instead of scattered
+ * conditionals — no server plan lookup can lower it.
+ */
+export const LOCAL_UNRESTRICTED = true;
+
+/** Highest self-serve plan id; paired with a lifetime source so it never expires. */
+export const LOCAL_UNRESTRICTED_PLAN = "pro_ultra";
+
 export function isDevBillingBypassEnabled() {
   if (typeof window !== "undefined") {
     try {
@@ -114,6 +125,9 @@ export function isDevBillingBypassEnabled() {
     } catch {
       // ignore storage access errors (private mode, etc.)
     }
+  }
+  if (LOCAL_UNRESTRICTED) {
+    return true;
   }
   // Explicitly show the gate in dev/preview so the entitlement flow can be
   // tested with `bun tauri dev` (which otherwise bypasses it via NODE_ENV).
@@ -134,7 +148,12 @@ export function isDevBillingBypassEnabled() {
 // preview builds should still exercise login unless this test-only affordance
 // was explicitly compiled into the frontend.
 export function isDevLoginSkipEnabled() {
-  return process.env.NEXT_PUBLIC_SCREENPIPE_DEV_LOGIN_SKIP === "true";
+  // Private local build: login is optional, so onboarding and the entitlement
+  // gate never block on an account session.
+  return (
+    LOCAL_UNRESTRICTED ||
+    process.env.NEXT_PUBLIC_SCREENPIPE_DEV_LOGIN_SKIP === "true"
+  );
 }
 
 // Show the dev-only login helper (paste a token / screenpipe:// URL) when we are
@@ -267,6 +286,7 @@ function hasVerifiedFreePlan(user: AppUser | null | undefined): boolean {
 export function getLocalPlanPolicy(
   user: AppUser | null | undefined,
 ): LocalPlanPolicy {
+  if (LOCAL_UNRESTRICTED) return "verified-paid";
   if (hasVerifiedPaidPlan(user)) return "verified-paid";
   if (hasVerifiedFreePlan(user)) return "verified-free";
   return "unknown";
@@ -297,6 +317,7 @@ function hasVerifiedPaidPlanAt(
   user: AppUser | null | undefined,
   nowMs: number,
 ): boolean {
+  if (LOCAL_UNRESTRICTED) return true;
   if (!Number.isFinite(nowMs)) return false;
   const stableAccountId = getStableAccountId(user);
   const entitlement = asEntitlement(user?.entitlement);
@@ -371,6 +392,7 @@ export function hasActiveManualSubscriptionGrant(
 
 /** Data sync is available only to eligible individual paid accounts. */
 export function canUseDataSync(user: AppUser | null | undefined): boolean {
+  if (LOCAL_UNRESTRICTED) return true;
   if (!hasVerifiedPaidPlan(user)) return false;
 
   const plan = user?.subscription_plan?.trim().toLowerCase();
@@ -430,6 +452,7 @@ export function getPaidPlanPolicyDeadlineMs(
   user: AppUser | null | undefined,
   nowMs: number,
 ): number | null {
+  if (LOCAL_UNRESTRICTED) return null;
   if (!hasVerifiedPaidPlanAt(user, nowMs)) return null;
 
   const entitlement = asEntitlement(user?.entitlement);
@@ -476,11 +499,13 @@ export function hasLegacyPaidAccess(user: AppUser | null | undefined) {
 }
 
 export function hasAppEntitlement(user: AppUser | null | undefined) {
+  if (LOCAL_UNRESTRICTED) return true;
   if (isDevBillingBypassEnabled()) return true;
   return getLocalPlanPolicy(user) === "verified-paid";
 }
 
 export function hasConsumerAppSubscription(user: AppUser | null | undefined) {
+  if (LOCAL_UNRESTRICTED) return true;
   if (!user) return false;
 
   const entitlement = asEntitlement(user.entitlement);
@@ -500,6 +525,7 @@ export function hasConsumerAppSubscription(user: AppUser | null | undefined) {
 }
 
 export function hasCloudEntitlement(user: AppUser | null | undefined) {
+  if (LOCAL_UNRESTRICTED) return true;
   return hasVerifiedPaidPlan(user) && hasEntitlementFeature(user, "cloud");
 }
 
@@ -554,6 +580,7 @@ export function hasPersistedEntitlementEvidence(user: AppUser | null | undefined
 }
 
 export function needsAppEntitlementRefresh(user: AppUser | null | undefined) {
+  if (LOCAL_UNRESTRICTED) return false;
   if (!user?.token) return false;
 
   const entitlement = asEntitlement(user.entitlement);
@@ -654,7 +681,46 @@ export function getBusinessCapacityUpgrade(
   }
 }
 
+/**
+ * Build the account shape used by this private local build: a lifetime
+ * entitlement on the highest self-serve plan. Server plan data is kept so the
+ * account section can still show who is signed in, but no field of it can lower
+ * a local limit.
+ */
+function unrestrictedAppUser(rawUser: any, token: string): AppUser {
+  const checkedAt = new Date().toISOString();
+  return {
+    ...rawUser,
+    token,
+    app_entitled: true,
+    subscription_plan: LOCAL_UNRESTRICTED_PLAN,
+    entitlement_source: "lifetime",
+    has_payment_method: true,
+    entitlement: {
+      active: true,
+      plan: LOCAL_UNRESTRICTED_PLAN,
+      source: "lifetime",
+      status: "active",
+      checked_at: checkedAt,
+      current_period_end: null,
+      expires_at: null,
+      grace_until: null,
+      features: {
+        app: true,
+        local_recording: true,
+        cloud: true,
+        integrations: true,
+        team: true,
+        enterprise: true,
+      },
+    },
+  } as AppUser;
+}
+
 export function normalizeAppUser(rawUser: any, token: string): AppUser {
+  if (LOCAL_UNRESTRICTED) {
+    return unrestrictedAppUser(rawUser, token);
+  }
   const checkedAt = new Date().toISOString();
   const rawEntitlement = asEntitlement(rawUser?.entitlement);
   const cloudSubscribed = rawUser?.cloud_subscribed === true;

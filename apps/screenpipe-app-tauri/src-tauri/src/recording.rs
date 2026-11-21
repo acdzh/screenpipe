@@ -180,6 +180,10 @@ fn server_access_policy(
 }
 
 pub(crate) fn server_access_allowed(app: &tauri::AppHandle, store: &SettingsStore) -> bool {
+    // Private local build: the local engine is not gated on an account session.
+    if crate::local_unlock::UNRESTRICTED {
+        return true;
+    }
     let startup_authentication = app
         .try_state::<crate::startup_auth::AuthenticationStatus>()
         .map(|status| *status)
@@ -207,6 +211,10 @@ pub(crate) fn server_access_allowed(app: &tauri::AppHandle, store: &SettingsStor
 /// Personal accounts may record on a verified free plan. Managed accounts and
 /// deployments require native organization policy and seat authorization.
 pub(crate) fn recording_access_allowed(app: &tauri::AppHandle, store: &SettingsStore) -> bool {
+    // Private local build: capture is never blocked by login, plan, or paywall.
+    if crate::local_unlock::UNRESTRICTED {
+        return true;
+    }
     let trial_activation_paywall = !crate::should_skip_onboarding()
         && OnboardingStore::get(app)
             .ok()

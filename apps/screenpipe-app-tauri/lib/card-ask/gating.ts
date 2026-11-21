@@ -6,6 +6,7 @@ import {
   hasActiveManualSubscriptionGrant,
   hasPersistedEntitlementEvidence,
   hasVerifiedPaidPlan,
+  LOCAL_UNRESTRICTED,
   type AppUser,
 } from "@/lib/app-entitlement";
 
@@ -179,6 +180,8 @@ export function isCardAskEligible(
   user: AppUser | null | undefined,
   isSettingsLoaded: boolean,
 ): boolean {
+  // Private local build: no card-ask experiment can prompt for payment.
+  if (LOCAL_UNRESTRICTED) return false;
   if (!isSettingsLoaded) return false;
   if (!user) return false;
 

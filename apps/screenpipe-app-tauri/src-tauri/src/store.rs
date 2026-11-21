@@ -1351,7 +1351,7 @@ pub fn trial_activation_dev_force_enabled() -> bool {
 impl OnboardingStore {
     fn new_install() -> Self {
         Self {
-            trial_activation_fresh_install: true,
+            trial_activation_fresh_install: !crate::local_unlock::UNRESTRICTED,
             ..Self::default()
         }
     }
@@ -1360,6 +1360,9 @@ impl OnboardingStore {
     /// first valid summary and the card-backed trial. Settings and connection
     /// setup are explicitly exempted by the window/router callers.
     pub fn blocks_trial_activation_app(&self) -> bool {
+        if crate::local_unlock::UNRESTRICTED {
+            return false;
+        }
         self.trial_activation_fresh_install
             && self.is_completed
             && matches!(
@@ -1372,6 +1375,9 @@ impl OnboardingStore {
     /// only after that result has actually rendered and the durable paywall
     /// sentinel is written.
     pub fn blocks_trial_activation_recording(&self) -> bool {
+        if crate::local_unlock::UNRESTRICTED {
+            return false;
+        }
         self.trial_activation_fresh_install
             && self.is_completed
             && self.current_step.as_deref() == Some(TRIAL_ACTIVATION_PAYWALL_STEP)
@@ -2629,6 +2635,11 @@ impl SettingsStore {
     /// server-verified plan evidence. Missing, conflicting, stale-paid, and
     /// future-dated evidence remains explicitly unknown.
     pub(crate) fn local_plan_policy(&self) -> LocalPlanPolicy {
+        // Private local build: the install is fully entitled, so no paid-only
+        // behavior (pipe cap, 24h history window, activity history) is applied.
+        if crate::local_unlock::UNRESTRICTED {
+            return LocalPlanPolicy::VerifiedPaid;
+        }
         if self.has_verified_paid_plan() {
             LocalPlanPolicy::VerifiedPaid
         } else if self.has_verified_free_plan() {
@@ -2655,6 +2666,11 @@ impl SettingsStore {
     }
 
     pub fn app_entitled_or_dev(&self) -> bool {
+        // Private local build: entitlement is a build property, not an account
+        // property, so release builds are never gated either.
+        if crate::local_unlock::UNRESTRICTED {
+            return true;
+        }
         // Debug builds (`bun tauri dev`, e2e, signed dev builds) are never gated.
         // Release builds must not be bypassable via a runtime env var.
         if cfg!(debug_assertions) {

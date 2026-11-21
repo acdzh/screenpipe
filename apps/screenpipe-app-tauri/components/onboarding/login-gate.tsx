@@ -267,7 +267,9 @@ const OnboardingLogin: React.FC<OnboardingLoginProps> = ({
 
   useEffect(() => {
     if (!isSettingsLoaded) return;
-    if (!suppressAutoAdvance && isLoggedIn && !hasAdvanced.current) {
+    // Setup never blocks on an account when login is optional, so a signed-out
+    // install advances on its own instead of parking on this slide.
+    if (!suppressAutoAdvance && (isLoggedIn || canSkipLogin) && !hasAdvanced.current) {
       // The page owns completion telemetry because experiment assignment can
       // unmount this slide on the same render that delivers the login token.
       // hasAdvanced flips when the timer fires, not when it is scheduled —
@@ -279,7 +281,7 @@ const OnboardingLogin: React.FC<OnboardingLoginProps> = ({
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [handleNextSlide, isLoggedIn, isSettingsLoaded, suppressAutoAdvance]);
+  }, [canSkipLogin, handleNextSlide, isLoggedIn, isSettingsLoaded, suppressAutoAdvance]);
 
   const handleLogin = useCallback(() => {
     posthog.capture("onboarding_login_clicked");
